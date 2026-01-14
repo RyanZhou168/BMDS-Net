@@ -1,0 +1,24 @@
+# Baseline: SegResNet (CNN)
+
+data:
+  root_dir: "./data/BraTS2021"
+  target_size: [128, 128, 128]
+  batch_size: 2
+
+model:
+  name: "segresnet"
+  in_channels: 4
+  out_channels: 4
+  init_filters: 32
+  dropout_prob: 0.2
+
+training:
+  epochs: 150
+  lr: 2.0e-4
+  use_amp: True
+
+loss:
+  type: "dice_ce" # Standard loss for baselines
+
+output:
+  dir: "./work_dirs/baselines/segresnet"

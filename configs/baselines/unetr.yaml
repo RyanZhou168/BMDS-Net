@@ -1,0 +1,29 @@
+# Baseline: UNETR (Standard Transformer)
+# Primarily used for Efficiency Benchmarking (Table 2 in paper)
+
+data:
+  root_dir: "./data/BraTS2021"
+  target_size: [128, 128, 128]
+  batch_size: 1  # UNETR is memory intensive
+
+model:
+  name: "unetr"
+  in_channels: 4
+  out_channels: 4
+  img_size: [128, 128, 128]
+  feature_size: 16
+  hidden_size: 768
+  mlp_dim: 3072
+  num_heads: 12
+  dropout_rate: 0.0
+
+training:
+  epochs: 150
+  lr: 1.0e-4
+  use_amp: True
+
+loss:
+  type: "dice_ce"
+
+output:
+  dir: "./work_dirs/baselines/unetr"

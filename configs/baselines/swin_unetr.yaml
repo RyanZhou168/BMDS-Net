@@ -1,0 +1,37 @@
+# Baseline: Swin UNETR (Pure)
+# Standard implementation without MMCF or DDS modules.
+
+data:
+  root_dir: "./data/BraTS2021"
+  target_size: [128, 128, 128]
+  batch_size: 2
+  num_workers: 4
+
+model:
+  name: "unetr" # Uses create_model('unetr') which maps to MONAI UNETR/SwinUNETR
+  # Actually, we need to map this to SwinUNETR in the factory. 
+  # Let's assume create_model handles 'swin_unetr_base' or we use specific kwargs.
+  # Here we explicitly define it for the factory:
+  type: "swin_unetr" 
+  img_size: [128, 128, 128]
+  in_channels: 4
+  out_channels: 4
+  feature_size: 48
+  depths: [2, 2, 2, 2]
+  num_heads: [3, 6, 12, 24]
+  drop_rate: 0.0
+  attn_drop_rate: 0.0
+  dropout_path_rate: 0.0
+  use_checkpoint: True
+
+training:
+  epochs: 150
+  lr: 2.0e-4
+  weight_decay: 1.0e-5
+  use_amp: True
+
+loss:
+  type: "dice_ce"
+
+output:
+  dir: "./work_dirs/baselines/swin_unetr"

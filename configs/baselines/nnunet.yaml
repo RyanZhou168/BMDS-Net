@@ -1,0 +1,24 @@
+# Baseline: nnU-Net v2
+# Note: nnU-Net handles its own architecture configuration automatically.
+# This config is used by the wrapper to locate data and execute commands.
+
+data:
+  root_dir: "./data/BraTS2021"
+  # nnU-Net requires specific folder structure conversion.
+  # The wrapper will look for 'nnUNet_raw', 'nnUNet_preprocessed' environments.
+
+model:
+  name: "nnunet_wrapper"
+  # BraTS 2021 Dataset ID in nnU-Net standard
+  dataset_id: 137
+  configuration: "3d_fullres"
+  trainer: "nnUNetTrainer"
+  plans: "nnUNetPlans"
+  fold: 0
+
+inference:
+  checkpoint_name: "checkpoint_best.pth"
+  save_probabilities: False
+
+output:
+  dir: "./work_dirs/baselines/nnunet"

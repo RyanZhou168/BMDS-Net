@@ -1,0 +1,30 @@
+# python / system
+__pycache__/
+*.py[cod]
+*$py.class
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Data & Results (Huge files, do not upload!)
+data/
+work_dirs/
+logs/
+benchmark_results/
+inference_results/
+
+# Large files specific to medical imaging
+*.nii.gz
+*.nii
+*.hdf5
+*.pth
+*.pt
+
+# Virtual Environment
+venv/
+env/
+.env
+
+# Temporary inputs/outputs
+temp_nnunet_input/
