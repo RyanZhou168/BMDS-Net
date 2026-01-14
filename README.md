@@ -75,15 +75,13 @@ python tools/test.py \
 | **BMDS-Net (Ours)** | **0.929** | **0.910** | **0.868** | **2.59** |
 
 ## 📜 Citation
-If you find this code useful, please cite our paper:
+If you find this code useful, please cite our work (citation details will be updated upon publication):
 ```bibtex
-@article{zhou2024bmdsnet,
-title={BMDS-Net: A Bayesian Multi-Modal Deep Supervision Network for Robust Brain Tumor Segmentation},
-author={Zhou, Yan and others},
-journal={arXiv preprint},
-year={2024}
+@article{zhou2026bmdsnet,
+  title={BMDS-Net: A Bayesian Multi-Modal Deep Supervision Network for Robust Brain Tumor Segmentation},
+  author={Zhou, Yan and others},
+  journal={Under Review},
+  year={2026}
 }
 ```
-```
 
----
