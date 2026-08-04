@@ -39,6 +39,7 @@ class BayesianConv3d(nn.Module):
         self.prior_mean = prior_mean
         self.prior_variance = prior_variance
         self.prior_logvar = torch.log(torch.tensor(prior_variance))
+        self.sample = False
         
         self.reset_parameters()
     
@@ -53,7 +54,7 @@ class BayesianConv3d(nn.Module):
         nn.init.constant_(self.bias_logvar, -5)
     
     def forward(self, x):
-        if self.training:
+        if self.training or self.sample:
             # Reparameterization Trick: w = mu + sigma * epsilon
             weight_std = torch.exp(0.5 * self.weight_logvar)
             weight_epsilon = torch.randn_like(weight_std)
@@ -74,6 +75,23 @@ class BayesianConv3d(nn.Module):
         Calculate KL Divergence: KL(q(w|theta) || p(w))
         Analytical solution for two Gaussians.
         """
-        kl_weight = -0.5 * self.weight_logvar + 0.5 * (self.prior_logvar - self.prior_mean + (self.weight_mu**2 + torch.exp(self.weight_logvar)) / self.prior_variance)
-        kl_bias = -0.5 * self.bias_logvar + 0.5 * (self.prior_logvar - self.prior_mean + (self.bias_mu**2 + torch.exp(self.bias_logvar)) / self.prior_variance)
+        prior_logvar = self.prior_logvar.to(self.weight_logvar.device)
+        kl_weight = 0.5 * (
+            prior_logvar
+            - self.weight_logvar
+            + (torch.exp(self.weight_logvar) + (self.weight_mu - self.prior_mean) ** 2) / self.prior_variance
+            - 1.0
+        )
+        kl_bias = 0.5 * (
+            prior_logvar
+            - self.bias_logvar
+            + (torch.exp(self.bias_logvar) + (self.bias_mu - self.prior_mean) ** 2) / self.prior_variance
+            - 1.0
+        )
         return kl_weight.sum() + kl_bias.sum()
+
+    def enable_sampling(self):
+        self.sample = True
+
+    def disable_sampling(self):
+        self.sample = False

@@ -1,7 +1,7 @@
 """
 Inference Engine Module.
 Handles Sliding Window Inference for large 3D volumes.
-Supports both Deterministic and Bayesian (MC Dropout) modes.
+Supports both deterministic and last-layer Bayesian Monte Carlo modes.
 """
 
 import torch
@@ -9,6 +9,19 @@ import numpy as np
 from monai.inferers import SlidingWindowInferer
 from tqdm import tqdm
 from typing import Tuple, Optional
+
+
+def region_probs_to_label_map(region_probs: torch.Tensor, threshold: float = 0.5) -> torch.Tensor:
+    """Convert WT/TC/ET sigmoid region probabilities to a display label map."""
+    regions = region_probs > threshold
+    wt = regions[:, 0]
+    tc = regions[:, 1]
+    et = regions[:, 2]
+    label = torch.zeros_like(wt, dtype=torch.long)
+    label[wt] = 2
+    label[tc] = 1
+    label[et] = 3
+    return label
 
 class BMDSInferer:
     """
@@ -40,7 +53,10 @@ class BMDSInferer:
             if isinstance(logits, (tuple, list)):
                 logits = logits[0]
                 
-            pred_mask = torch.argmax(logits, dim=1) # [B, H, W, D]
+            if logits.shape[1] == 3:
+                pred_mask = region_probs_to_label_map(torch.sigmoid(logits))
+            else:
+                pred_mask = torch.argmax(logits, dim=1) # [B, H, W, D]
             
         return pred_mask[0].cpu().numpy()
 
@@ -69,7 +85,7 @@ class BMDSInferer:
                 if isinstance(logits, (tuple, list)):
                     logits = logits[0]
                 
-                probs = torch.softmax(logits, dim=1)
+                probs = torch.sigmoid(logits) if logits.shape[1] == 3 else torch.softmax(logits, dim=1)
                 predictions.append(probs.cpu()) # Keep on CPU to save GPU memory
 
         # Stack: [Samples, B, C, H, W, D]
@@ -77,7 +93,10 @@ class BMDSInferer:
         
         # Mean Prediction
         mean_probs = torch.mean(predictions, dim=0) # [B, C, H, W, D]
-        seg_result = torch.argmax(mean_probs, dim=1)[0].numpy()
+        if mean_probs.shape[1] == 3:
+            seg_result = region_probs_to_label_map(mean_probs)[0].numpy()
+        else:
+            seg_result = torch.argmax(mean_probs, dim=1)[0].numpy()
         
         # Uncertainty (Predictive Variance)
         # Average variance across all channels

@@ -10,7 +10,7 @@ model:
   name: "bmds_net"
   img_size: [128, 128, 128]
   in_channels: 4
-  out_channels: 4
+  out_channels: 3
   feature_size: 48
   depths: [2, 2, 2, 2]
   num_heads: [3, 6, 12, 24]
@@ -18,6 +18,9 @@ model:
   attn_drop_rate: 0.1
   dropout_path_rate: 0.2
   use_checkpoint: True
+  use_mmcf: True
+  use_aux: True
+  use_gated_dds: True
 
 training:
   epochs: 150
@@ -26,10 +29,13 @@ training:
   use_amp: True
   
 loss:
-  type: "dice_ce"
-  alpha: 1.0  # DiceCE Weight
-  beta: 0.5   # Boundary Weight
+  type: "boundary_focal_dice"
+  dice_weight: 1.0
+  boundary_weight: 1.0
+  focal_weight: 1.0
+  focal_gamma: 2.0
   dds_weights: [1.0, 0.4, 0.2] # Weights for [Main, Aux1, Aux2]
+  distill_weight: 0.05
 
 output:
   dir: "./work_dirs/stage1_deterministic"

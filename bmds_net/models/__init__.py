@@ -18,8 +18,9 @@ def create_model(model_name: str, **kwargs) -> nn.Module:
         **kwargs: Arguments passed to the model constructor.
     """
     
-    # Clean kwargs (remove None values or irrelevant keys if necessary)
-    valid_kwargs = {k: v for k, v in kwargs.items() if v is not None}
+    # Clean YAML metadata keys that are not constructor arguments.
+    ignored_keys = {"name", "type"}
+    valid_kwargs = {k: v for k, v in kwargs.items() if v is not None and k not in ignored_keys}
     
     if model_name == 'bmds_net':
         return BMDSNet(**valid_kwargs)

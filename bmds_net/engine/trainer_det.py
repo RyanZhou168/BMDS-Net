@@ -59,7 +59,7 @@ class DeterministicTrainer:
                 
                 # Check for multiple outputs (BMDS-Net returns tuple)
                 if isinstance(outputs, (list, tuple)):
-                    logits_final, logits_64, logits_32, mmcf_weights, uncertainty = outputs
+                    logits_final, logits_64, logits_32, mmcf_weights = outputs
                     
                     # 1. Main Loss
                     loss = self.criterion(logits_final, labels, current_epoch=epoch)
@@ -72,13 +72,11 @@ class DeterministicTrainer:
                     # 3. Distillation Loss
                     # Access raw model if wrapped in DDP
                     raw_model = self.model.module if hasattr(self.model, 'module') else self.model
-                    if hasattr(raw_model, 'get_dds_features'):
+                    distill_weight = self.config['loss'].get('distill_weight', 0.05)
+                    if distill_weight > 0 and hasattr(raw_model, 'get_dds_features'):
                         dds_feats = raw_model.get_dds_features()
                         d_loss = self.distill_criterion(mmcf_weights, dds_feats)
-                        loss += 0.2 * d_loss # Fixed weight for distillation
-                    
-                    # DDP Hack: Connect unused uncertainty output to graph
-                    loss += 0.0 * uncertainty.sum()
+                        loss += distill_weight * d_loss
                     
                 else:
                     # Baseline models (Single output)

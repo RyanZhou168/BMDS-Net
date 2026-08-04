@@ -72,7 +72,8 @@ def main():
     
     for i in tqdm(range(len(ds))):
         case_id = ds.cases[i]
-        image, label = ds[i] # image: [4, H, W, D], label: [H, W, D]
+        sample = ds[i]
+        image, label = sample['image'], sample['label'] # image: [4, H, W, D], label: [H, W, D]
         
         # Add batch dimension for inference
         image_input = image.unsqueeze(0)

@@ -3,27 +3,38 @@
 data:
   root_dir: "./data/BraTS2021"
   target_size: [128, 128, 128]
+  num_workers: 4
   
 model:
   name: "bayesian_bmds_net"
   img_size: [128, 128, 128]
   in_channels: 4
-  out_channels: 4
+  out_channels: 3
   feature_size: 48
-  mc_dropout_rate: 0.1
+  mc_dropout_rate: 0.0
   # Must match Stage 1 architecture
   depths: [2, 2, 2, 2]
   num_heads: [3, 6, 12, 24]
+  use_mmcf: True
+  use_aux: True
+  use_gated_dds: True
 
 pretrained:
   path: "./work_dirs/stage1_deterministic/models/best_model.pth"
 
 training:
   epochs: 30
-  lr: 2.0e-5  # Lower LR for fine-tuning
+  lr: 1.0e-5  # Lower LR for fine-tuning
   batch_size: 1 # Smaller batch size due to MC sampling overhead
   use_amp: True
-  kl_weight: 0.005
+  kl_weight: 1.0e-6
+
+loss:
+  type: "boundary_focal_dice"
+  dice_weight: 1.0
+  boundary_weight: 1.0
+  focal_weight: 1.0
+  focal_gamma: 2.0
 
 output:
   dir: "./work_dirs/stage2_bayesian"

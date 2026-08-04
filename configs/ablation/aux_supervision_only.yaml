@@ -1,5 +1,6 @@
-# Configuration comparison: MMCF only.
-# BoundaryFocalDice + zero-initialized MMCF, without auxiliary decoder heads.
+# Configuration comparison: auxiliary supervision only.
+# BoundaryFocalDice + intermediate decoder heads, without MMCF-derived gating
+# in the inference graph.
 
 data:
   root_dir: "./data/BraTS2021"
@@ -16,14 +17,14 @@ model:
   depths: [2, 2, 2, 2]
   num_heads: [3, 6, 12, 24]
   use_checkpoint: True
-  use_mmcf: True
-  use_aux: False
+  use_mmcf: False
+  use_aux: True
   use_gated_dds: False
 
 training:
   epochs: 150
   lr: 2.0e-4
-  weight_decay: 1.0e-2
+  weight_decay: 1.0e-4
   use_amp: True
 
 loss:
@@ -32,8 +33,8 @@ loss:
   boundary_weight: 1.0
   focal_weight: 1.0
   focal_gamma: 2.0
-  dds_weights: [1.0, 0.0, 0.0]
+  dds_weights: [1.0, 0.4, 0.2]
   distill_weight: 0.0
 
 output:
-  dir: "./work_dirs/ablation/mmcf_only"
+  dir: "./work_dirs/configuration/aux_supervision_only"

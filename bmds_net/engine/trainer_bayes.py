@@ -1,6 +1,6 @@
 """
 Stage 2: Bayesian Trainer.
-Handles fine-tuning of the Bayesian layer using Variational Inference (VI).
+Handles KL-regularized fine-tuning of the final Bayesian layer.
 """
 
 import os
@@ -47,9 +47,8 @@ class BayesianTrainer:
         total_loss = 0.0
         total_kl = 0.0
         
-        # KL Annealing Strategy: Gradually increase KL weight
-        # Start from epoch 0, ramp up over 10 epochs
-        kl_anneal_factor = min(1.0, epoch / 10.0)
+        # KL warm-up over the first five epochs, matching the manuscript setup.
+        kl_anneal_factor = min(1.0, epoch / 5.0)
         current_kl_weight = self.kl_weight * kl_anneal_factor
         
         pbar = tqdm(self.train_loader, desc=f"Bayes Epoch {epoch+1}", leave=False)
@@ -72,7 +71,7 @@ class BayesianTrainer:
                 # KL Divergence Loss (Regularization)
                 kl_loss = self._get_kl() * current_kl_weight
                 
-                # ELBO = Task Loss + KL
+                # KL-regularized composite segmentation objective.
                 loss = task_loss + kl_loss
 
             self.scaler.scale(loss).backward()
@@ -126,7 +125,7 @@ class BayesianTrainer:
             
             self.scheduler.step()
             
-            self.logger.info(f"Epoch {epoch+1} - ELBO: {loss:.4f} - Val Dice: {val_dice:.4f}")
+            self.logger.info(f"Epoch {epoch+1} - Loss: {loss:.4f} - Val Dice: {val_dice:.4f}")
             
             if val_dice > self.best_dice:
                 self.best_dice = val_dice

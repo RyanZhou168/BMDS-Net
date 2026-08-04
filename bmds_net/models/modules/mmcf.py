@@ -8,9 +8,9 @@ cross-modal attention.
 import torch
 import torch.nn as nn
 
-class UncertaintyAwareMMCF(nn.Module):
+class ZeroInitMMCF(nn.Module):
     """
-    Uncertainty-Aware Multimodal Contextual Fusion Module.
+    Zero-initialized Multimodal Contextual Fusion Module.
     
     Args:
         in_channels (int): Number of input modalities (default: 4).
@@ -34,11 +34,6 @@ class UncertaintyAwareMMCF(nn.Module):
         self.attention_conv = nn.Conv3d(base_channels, in_channels, kernel_size=1)
         self.sigmoid = nn.Sigmoid()
         
-        # Branch 2: Uncertainty Map Generation (Aleatoric Uncertainty Guide)
-        # Output: [B, 1, H, W, D]
-        self.uncertainty_conv = nn.Conv3d(base_channels, 1, kernel_size=1)
-        self.uncertainty_act = nn.Sigmoid()
-        
         # Learnable scalar initialized to 0 (Zero-Init)
         # This ensures x_fused = x at the start of training.
         self.alpha = nn.Parameter(torch.zeros(1)) 
@@ -61,17 +56,17 @@ class UncertaintyAwareMMCF(nn.Module):
         Returns:
             x_fused: Contextually fused features.
             att_map: Attention weights (for visualization/distillation).
-            uncertainty: Voxel-wise uncertainty estimation.
         """
         feat = self.encoder(x)
         
         # Generate Attention Map
         att_map = self.sigmoid(self.attention_conv(feat))
-        
-        # Generate Uncertainty Map
-        uncertainty = self.uncertainty_act(self.uncertainty_conv(feat))
-        
+
         # Residual Fusion: x + alpha * (x * attention)
         x_fused = x + self.alpha * (x * att_map)
         
-        return x_fused, att_map, uncertainty
+        return x_fused, att_map
+
+
+# Backward-compatible alias for earlier public releases.
+UncertaintyAwareMMCF = ZeroInitMMCF

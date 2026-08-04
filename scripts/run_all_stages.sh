@@ -9,7 +9,7 @@ set -e # Exit immediately if a command exits with a non-zero status.
 export CUDA_VISIBLE_DEVICES=0,1
 
 echo "=========================================================="
-echo "   BMDS-Net: Robust Brain Tumor Segmentation Pipeline     "
+echo "   BMDS-Net: Deployment-aware Segmentation Pipeline       "
 echo "=========================================================="
 
 # ------------------------------------------------------------------

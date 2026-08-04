@@ -9,7 +9,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from monai.networks.nets import SwinUNETR
 
-from .modules.mmcf import UncertaintyAwareMMCF
+from .modules.mmcf import ZeroInitMMCF
 from .modules.dds import ResidueGatedDDSHead
 from .modules.bayesian_layers import BayesianConv3d
 
@@ -21,20 +21,27 @@ class BMDSNet(nn.Module):
     def __init__(self, 
                  img_size=(128, 128, 128),
                  in_channels=4,
-                 out_channels=4,
+                 out_channels=3,
                  feature_size=48,
                  depths=(2, 2, 2, 2),
                  num_heads=(3, 6, 12, 24),
                  drop_rate=0.0,
                  attn_drop_rate=0.0,
                  dropout_path_rate=0.0,
-                 use_checkpoint=True):
+                 use_checkpoint=True,
+                 use_mmcf=True,
+                 use_aux=True,
+                 use_gated_dds=True):
         
         super().__init__()
         self.img_size = img_size
+        self.in_channels = in_channels
+        self.use_mmcf = use_mmcf
+        self.use_aux = use_aux
+        self.use_gated_dds = use_gated_dds
         
         # 1. MMCF Module (Input Fusion)
-        self.mmcf = UncertaintyAwareMMCF(in_channels=in_channels)
+        self.mmcf = ZeroInitMMCF(in_channels=in_channels) if use_mmcf else None
         
         # 2. Backbone (SwinUNETR)
         self.swin_unetr = SwinUNETR(
@@ -63,7 +70,11 @@ class BMDSNet(nn.Module):
 
     def forward(self, x):
         # 1. MMCF Fusion
-        x_fused, att_map, uncertainty = self.mmcf(x)
+        if self.mmcf is not None:
+            x_fused, att_map = self.mmcf(x)
+        else:
+            x_fused = x
+            att_map = torch.zeros_like(x)
         
         # 2. Encoder (SwinViT)
         hidden_states_out = self.swin_unetr.swinViT(x_fused)
@@ -76,35 +87,41 @@ class BMDSNet(nn.Module):
         # 3. Decoder with DDS Hooks
         dec3 = self.swin_unetr.decoder5(dec4, hidden_states_out[3])
         dec2 = self.swin_unetr.decoder4(dec3, enc3)
-        dec1 = self.swin_unetr.decoder3(dec2, enc2)
-        dec0 = self.swin_unetr.decoder2(dec1, enc1)
+
+        if self.use_gated_dds:
+            w_32 = F.interpolate(att_map, size=dec2.shape[2:], mode='trilinear', align_corners=False)
+            dec2_for_next = self.dds_head_32(dec2, w_32)
+        else:
+            dec2_for_next = dec2
+
+        dec1 = self.swin_unetr.decoder3(dec2_for_next, enc2)
+
+        if self.use_gated_dds:
+            w_64 = F.interpolate(att_map, size=dec1.shape[2:], mode='trilinear', align_corners=False)
+            dec1_for_next = self.dds_head_64(dec1, w_64)
+        else:
+            dec1_for_next = dec1
+
+        dec0 = self.swin_unetr.decoder2(dec1_for_next, enc1)
         out_final = self.swin_unetr.decoder1(dec0, enc0)
         
         # Main Output
         logits_final = self.swin_unetr.out(out_final)
         
         # If in training mode, compute auxiliary outputs
-        if self.training:
-            # Interpolate attention weights for DDS gating
-            w_32 = F.interpolate(att_map, size=dec2.shape[2:], mode='trilinear')
-            w_64 = F.interpolate(att_map, size=dec1.shape[2:], mode='trilinear')
-            
-            # Apply DDS Gating
-            feat_32_gated = self.dds_head_32(dec2, w_32)
-            feat_64_gated = self.dds_head_64(dec1, w_64)
-            
+        if self.training and self.use_aux:
             # Aux Heads
-            logits_32 = self.aux_head_32(feat_32_gated)
-            logits_64 = self.aux_head_64(feat_64_gated)
+            logits_32 = self.aux_head_32(dec2_for_next)
+            logits_64 = self.aux_head_64(dec1_for_next)
             
             # Upsample Aux outputs
             logits_32_up = F.interpolate(logits_32, size=self.img_size, mode='trilinear')
             logits_64_up = F.interpolate(logits_64, size=self.img_size, mode='trilinear')
             
             # Store features for distillation
-            self._dds_features = [dec1, dec2]
+            self._dds_features = [dec1_for_next, dec2_for_next]
             
-            return logits_final, logits_64_up, logits_32_up, att_map, uncertainty
+            return logits_final, logits_64_up, logits_32_up, att_map
         
         return logits_final
 
@@ -173,6 +190,16 @@ class BayesianBMDSNet(nn.Module):
         if isinstance(out, tuple):
             return out[0] # Return only logits
         return out
+
+    def enable_uncertainty(self):
+        for module in self.modules():
+            if isinstance(module, BayesianConv3d):
+                module.enable_sampling()
+
+    def disable_uncertainty(self):
+        for module in self.modules():
+            if isinstance(module, BayesianConv3d):
+                module.disable_sampling()
 
     def nn_kl_divergence(self):
         """Get KL divergence from the final Bayesian layer."""

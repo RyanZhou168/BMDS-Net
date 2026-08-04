@@ -18,7 +18,7 @@ from bmds_net.models import create_model
 from bmds_net.data.dataset import BraTSDataset
 from bmds_net.data.transforms import BraTSTransform
 from bmds_net.engine.trainer_det import DeterministicTrainer
-from bmds_net.engine.losses import RobustBoundaryFocalDiceLoss
+from bmds_net.engine.losses import build_loss
 from bmds_net.utils.logger import setup_logger
 
 def main():
@@ -57,10 +57,10 @@ def main():
                          transform=BraTSTransform(train=False, target_size=roi_size))
     
     train_sampler = DistributedSampler(train_ds) if world_size > 1 else None
-    train_loader = DataLoader(train_ds, batch_size=config['training']['batch_size'], 
+    train_loader = DataLoader(train_ds, batch_size=config['data']['batch_size'],
                             sampler=train_sampler, shuffle=(train_sampler is None), 
-                            num_workers=4, pin_memory=True)
-    val_loader = DataLoader(val_ds, batch_size=1, shuffle=False, num_workers=2)
+                            num_workers=config['data'].get('num_workers', 4), pin_memory=True)
+    val_loader = DataLoader(val_ds, batch_size=1, shuffle=False, num_workers=config['data'].get('num_workers', 2))
 
     # 4. Model
     model = create_model(config['model']['name'], **config['model'])
@@ -70,9 +70,13 @@ def main():
         model = DDP(model, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=False)
 
     # 5. Optimizer & Loss
-    optimizer = torch.optim.AdamW(model.parameters(), lr=config['training']['lr'], weight_decay=1e-4)
+    optimizer = torch.optim.AdamW(
+        model.parameters(),
+        lr=config['training']['lr'],
+        weight_decay=config['training'].get('weight_decay', 1e-4),
+    )
     scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=10, T_mult=2)
-    criterion = RobustBoundaryFocalDiceLoss().cuda(local_rank)
+    criterion = build_loss(config.get('loss', {})).cuda(local_rank)
 
     # 6. Trainer
     trainer = DeterministicTrainer(

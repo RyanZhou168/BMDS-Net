@@ -3,10 +3,10 @@ from setuptools import setup, find_packages
 setup(
     name="bmds_net",
     version="1.0.0",
-    description="Official implementation of BMDS-Net: A Bayesian Multi-Modal Deep Supervision Network for Robust Brain Tumor Segmentation",
+    description="BMDS-Net for deployment-aware multi-modal brain tumor segmentation",
     author="Yan Zhou",
-    author_email="zhou_yan@example.com",
-    url="https://github.com/YourRepo/BMDS-Net",
+    author_email="1727663150@qq.com",
+    url="https://github.com/RyanZhou168/BMDS-Net",
     packages=find_packages(exclude=["tests", "tools", "configs"]),
     include_package_data=True,
     python_requires=">=3.8",

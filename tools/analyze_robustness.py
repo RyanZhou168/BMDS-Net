@@ -82,7 +82,8 @@ def main():
     
     for case_idx in tqdm(range(len(ds))):
         case_id = ds.cases[case_idx]
-        image, label = ds[case_idx] # image: [4, H, W, D]
+        sample = ds[case_idx]
+        image, label = sample['image'], sample['label'] # image: [4, H, W, D]
         
         # Prepare Label
         l_t = label.unsqueeze(0).unsqueeze(0) # [1, 1, H, W, D]
@@ -97,15 +98,17 @@ def main():
             pred_mask = inferer.deterministic_infer(model, img_input, device)
             p_t = torch.from_numpy(pred_mask).unsqueeze(0).unsqueeze(0)
             
-            # Metric (Dice WT)
+            # Metrics for WT/TC/ET regions
             metrics = calculate_dice(p_t, l_t)
-            case_result[name] = metrics['dice_wt']
+            case_result[f'{name}_WT'] = metrics['dice_wt']
+            case_result[f'{name}_TC'] = metrics['dice_tc']
+            case_result[f'{name}_ET'] = metrics['dice_et']
             
         results.append(case_result)
         
     # Summary
     df = pd.DataFrame(results)
-    print("\nRobustness Summary (Mean Dice WT):")
+    print("\nRobustness Summary (Mean Dice):")
     summary = df.mean(numeric_only=True)
     print(summary)
     
